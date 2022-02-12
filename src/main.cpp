@@ -44,7 +44,12 @@ bool can_haz_interweb() {
     client.connect(hosts[i], 80);
     ESP.wdtFeed();
     if (client.connected()) {
-      client.print("GET /techlab-watchdog HTTP/1.0\r\nHost:");
+      int mins = millis()/60000;
+      int hours = mins/60;
+      int days = hours/24;
+      mins %= 60;
+      hours %= 24;
+      client.printf("GET /techlab-watchdog-%dd-%02d:%02d HTTP/1.0\r\nHost:",days, hours, mins);
       client.print(hosts[i]);
       client.print("\r\n\r\n");
       Serial.print("Connection to ");
@@ -73,7 +78,7 @@ void setup() {
   EEPROM.begin(512);  //Initialize EEPROM
 
   int fails = 10; // Try for 5 minutes
-  for(;!connectToWifi(30);fails--);
+  for(;!connectToWifi(30) && fails>0;fails--);
   if (fails==0) {;
     Serial.println("Could not connect to wifi. Reboot!");
     delay(50);
@@ -81,11 +86,12 @@ void setup() {
   }
   Serial.println("Have WiFi!");
   
+  /* Not needed
   time_t now = time(nullptr);
   Serial.println("Time now:");
   Serial.print(ctime(&now));
   configTzTime("CET-1CEST,M3.5.0,M10.5.0/3", "pool.ntp.org");
-  
+  */
   // May be wait for time to synchronize;
 
 /*
@@ -103,9 +109,6 @@ unsigned long lastCheck = 0;
 unsigned int failedweb = 0;
 void loop() {
   if (millis()-lastCheck > 60000L) {
-    time_t now = time(nullptr);
-    Serial.println("Time now:");
-    Serial.print(ctime(&now));
     lastCheck = millis();
     if (WiFi.isConnected()) {
       if (!can_haz_interweb()) {
@@ -118,21 +121,15 @@ void loop() {
             delay(100);
             ESP.wdtFeed();
           }
-          // Turn power back on
-          digitalWrite(RELAY, HIGH);
-          // Wait for 2 min
-          for (int i=0; i<1200; i++) {
-            delay(100);
-            ESP.wdtFeed();
-          }
-          failedweb = 0;
+          // Turn power back on by restarting
+          ESP.restart();          
         }
       } else {
         failedweb=0;
       }
     } else {  // no wifi
       int fails = 20; // Try for 10 minutes
-      for(;!connectToWifi(30);fails--);
+      for(;!connectToWifi(30) && fails>0;fails--);
       if (fails==0) {
         ESP.restart();
       }
@@ -148,6 +145,7 @@ void loop() {
     Serial.println("Program me!");\
     delay(20);
     ESP.rebootIntoUartDownloadMode();
-  }*/
-  
+  }
+  */
+
 }
